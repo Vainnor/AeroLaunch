@@ -17,7 +17,6 @@ if sys.platform == "win32":
     except ImportError:
         print("Warning: 'winreg' module not available. Registry discovery will be skipped.")
 
-
 def get_config_file_path():
     app_name = "AeroLaunch"
     org_name = "vainnor"
@@ -26,10 +25,8 @@ def get_config_file_path():
     os.makedirs(config_dir, exist_ok=True)
     return os.path.join(config_dir, "config.json")
 
-
 CONFIG_FILE = get_config_file_path()
 print(f"Configuration will be saved/loaded at: {CONFIG_FILE}")
-
 
 class FlightApp:
     def __init__(self, name, path=None, default_checked=False):
@@ -41,7 +38,7 @@ class FlightApp:
         return {
             "name": self.name,
             "path": self.path,
-            "default_checked": self.default_checked
+            "default_checked": self.default_checked # Include checked state
         }
 
     @staticmethod
@@ -52,13 +49,11 @@ class FlightApp:
             data.get("default_checked", False)
         )
 
-
-# --- New Dialog for Editing Applications ---
 class EditApplicationDialog(QDialog):
     def __init__(self, app_name="", app_path="", parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Application Details")
-        self.setGeometry(200, 200, 400, 150)  # x, y, width, height
+        self.setGeometry(200, 200, 400, 150)
 
         self.name_input = QLineEdit(app_name)
         self.path_input = QLineEdit(app_path)
@@ -86,7 +81,6 @@ class EditApplicationDialog(QDialog):
         file_dialog = QFileDialog(self)
         file_dialog.setWindowTitle("Select Application Executable/Bundle")
 
-        # Use DontUseNativeDialog for macOS issues
         if sys.platform == "darwin":
             file_dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
             file_dialog.setNameFilter("Applications (*.app);;All Files (*)")
@@ -95,7 +89,7 @@ class EditApplicationDialog(QDialog):
         elif sys.platform == "win32":
             file_dialog.setNameFilter("Executables (*.exe);;All Files (*)")
             file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        else:  # Generic for Linux or others
+        else:
             file_dialog.setNameFilter("Executables (*);;All Files (*)")
             file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
 
@@ -107,17 +101,15 @@ class EditApplicationDialog(QDialog):
     def get_details(self):
         return self.name_input.text(), self.path_input.text()
 
-
-# --- Main Window Class ---
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AeroLaunch")
+        self.setWindowTitle("AeroLauncher")
         self.setGeometry(100, 100, 600, 400)
 
         self.available_apps = [
             FlightApp("Microsoft Flight Simulator", default_checked=True),
-            FlightApp("ElevateX"),
+            FlightApp("Elevatex"),
             FlightApp("Navigraph Charts"),
         ]
 
@@ -127,7 +119,7 @@ class MainWindow(QMainWindow):
         self._create_layout()
         self._connect_signals()
         self._update_app_list_widget()
-        self._update_action_buttons_state()  # Initial state for Edit/Delete buttons
+        self._update_action_buttons_state()
 
     def _load_config(self):
         if not os.path.exists(CONFIG_FILE):
@@ -152,6 +144,7 @@ class MainWindow(QMainWindow):
         except json.JSONDecodeError as e:
             QMessageBox.critical(self, "Config Error", f"Error reading config file: {e}\nUsing default applications.")
             print(f"Error reading config file: {e}. Using default applications.")
+            # Reset to defaults if config is corrupted
             self.available_apps = [
                 FlightApp("Microsoft Flight Simulator", default_checked=True),
                 FlightApp("ElevateX"),
@@ -159,9 +152,9 @@ class MainWindow(QMainWindow):
             ]
             self._save_config()
         except Exception as e:
-            QMessageBox.critical(self, "Config Error",
-                                 f"An unexpected error occurred loading config: {e}\nUsing default applications.")
+            QMessageBox.critical(self, "Config Error", f"An unexpected error occurred loading config: {e}\nUsing default applications.")
             print(f"Unexpected error loading config: {e}. Using default applications.")
+            # Reset to defaults on unexpected error
             self.available_apps = [
                 FlightApp("Microsoft Flight Simulator", default_checked=True),
                 FlightApp("ElevateX"),
@@ -193,16 +186,17 @@ class MainWindow(QMainWindow):
 
     def _create_widgets(self):
         self.app_list_widget = QListWidget()
-        self.app_list_widget.setSelectionMode(QListWidget.SingleSelection)  # Allow single selection for edit/delete
+        self.app_list_widget.setSelectionMode(QListWidget.SingleSelection)
 
         self.launch_button = QPushButton("Launch Selected Applications")
         self.auto_discover_button = QPushButton("Auto-Discover Applications")
         self.add_custom_app_button = QPushButton("Add Custom Application...")
-        self.edit_app_button = QPushButton("Edit Selected Application")  # New Button
-        self.delete_app_button = QPushButton("Delete Selected Application")  # New Button
+        self.edit_app_button = QPushButton("Edit Selected Application")
+        self.delete_app_button = QPushButton("Delete Selected Application")
 
-        self.edit_app_button.setEnabled(False)  # Initially disabled
-        self.delete_app_button.setEnabled(False)  # Initially disabled
+        self.edit_app_button.setEnabled(False)
+        self.delete_app_button.setEnabled(False)
+
 
     def _create_layout(self):
         main_layout = QVBoxLayout()
@@ -214,9 +208,9 @@ class MainWindow(QMainWindow):
         button_layout_top = QHBoxLayout()
         button_layout_top.addWidget(self.auto_discover_button)
         button_layout_top.addWidget(self.add_custom_app_button)
-        button_layout_top.addStretch()  # Push edit/delete to the right
-        button_layout_top.addWidget(self.edit_app_button)  # Add edit button
-        button_layout_top.addWidget(self.delete_app_button)  # Add delete button
+        button_layout_top.addStretch()
+        button_layout_top.addWidget(self.edit_app_button)
+        button_layout_top.addWidget(self.delete_app_button)
 
         main_layout.addLayout(button_layout_top)
 
@@ -234,16 +228,22 @@ class MainWindow(QMainWindow):
         self.launch_button.clicked.connect(self._launch_selected_applications)
         self.auto_discover_button.clicked.connect(self._auto_discover_applications)
         self.add_custom_app_button.clicked.connect(self._add_custom_application)
-        self.edit_app_button.clicked.connect(self._edit_selected_application)  # Connect edit button
-        self.delete_app_button.clicked.connect(self._delete_selected_application)  # Connect delete button
-        self.app_list_widget.itemSelectionChanged.connect(
-            self._update_action_buttons_state)  # Listen for selection changes
+        self.edit_app_button.clicked.connect(self._edit_selected_application)
+        self.delete_app_button.clicked.connect(self._delete_selected_application)
+        self.app_list_widget.itemSelectionChanged.connect(self._update_action_buttons_state)
+        # Connect to itemChanged signal to detect checkbox state changes
+        self.app_list_widget.itemChanged.connect(self._handle_item_checked_changed)
 
     def _update_action_buttons_state(self):
-        """Enables/disables Edit/Delete buttons based on list selection."""
         has_selection = bool(self.app_list_widget.selectedItems())
         self.edit_app_button.setEnabled(has_selection)
         self.delete_app_button.setEnabled(has_selection)
+
+    def _handle_item_checked_changed(self, item):
+        """Updates the FlightApp object's default_checked state when a checkbox is changed."""
+        app = item.data(Qt.UserRole)
+        app.default_checked = (item.checkState() == Qt.Checked)
+        self._save_config() # Save config immediately after a checkbox state change
 
     def _update_app_list_widget(self):
         self.app_list_widget.clear()
@@ -262,10 +262,15 @@ class MainWindow(QMainWindow):
 
     def _launch_selected_applications(self):
         launched_count = 0
+        # Iterate through all items to ensure all current checked states are saved
+        # This is somewhat redundant with _handle_item_checked_changed,
+        # but provides a fallback if for some reason that signal isn't caught.
+        # It's also necessary to save *before* launching if the user is
+        # relying on the launch button to implicitly save state.
         for i in range(self.app_list_widget.count()):
             item = self.app_list_widget.item(i)
             app = item.data(Qt.UserRole)
-            app.default_checked = (item.checkState() == Qt.Checked)
+            app.default_checked = (item.checkState() == Qt.Checked) # Update state before checking
 
             if item.checkState() == Qt.Checked:
                 if app.path and os.path.exists(app.path):
@@ -286,7 +291,7 @@ class MainWindow(QMainWindow):
                     QMessageBox.warning(self, "Missing Path",
                                         f"Cannot launch '{app.name}'. Path is not set or file not found.")
 
-        self._save_config()
+        self._save_config() # Save config after launching (to persist final checked states)
 
         if launched_count > 0:
             QMessageBox.information(self, "Launch Complete",
@@ -308,9 +313,9 @@ class MainWindow(QMainWindow):
                 found_count += 1
                 print(f"Found {app_obj.name} at: {new_path}")
             elif not app_obj.path and new_path:
-                app_obj.path = new_path
-                found_count += 1
-                print(f"Found {app_obj.name} at: {new_path}")
+                 app_obj.path = new_path
+                 found_count += 1
+                 print(f"Found {app_obj.name} at: {new_path}")
 
         self._update_app_list_widget()
         self._save_config()
@@ -326,12 +331,10 @@ class MainWindow(QMainWindow):
         app_name, ok = QInputDialog.getText(self, "Add Custom Application", "Enter Application Name:")
 
         if ok and app_name:
-            if any(app.name.lower() == app_name.lower() for app in self.available_apps):  # Case-insensitive check
-                QMessageBox.warning(self, "Duplicate Name",
-                                    f"An application named '{app_name}' already exists (case-insensitive). Please choose a different name.")
+            if any(app.name.lower() == app_name.lower() for app in self.available_apps):
+                QMessageBox.warning(self, "Duplicate Name", f"An application named '{app_name}' already exists (case-insensitive). Please choose a different name.")
                 return
 
-            # Use EditApplicationDialog for a consistent UX for path selection
             edit_dialog = EditApplicationDialog(app_name=app_name, parent=self)
             if edit_dialog.exec() == QDialog.Accepted:
                 new_app_name, new_app_path = edit_dialog.get_details()
@@ -339,11 +342,9 @@ class MainWindow(QMainWindow):
                     QMessageBox.warning(self, "Input Error", "Application path cannot be empty.")
                     return
 
-                # Re-check for duplicate name after dialog, in case user changed it there
                 if new_app_name.lower() != app_name.lower() and \
-                        any(app.name.lower() == new_app_name.lower() for app in self.available_apps):
-                    QMessageBox.warning(self, "Duplicate Name",
-                                        f"An application named '{new_app_name}' already exists (case-insensitive). Please choose a different name.")
+                   any(app.name.lower() == new_app_name.lower() for app in self.available_apps):
+                    QMessageBox.warning(self, "Duplicate Name", f"An application named '{new_app_name}' already exists (case-insensitive). Please choose a different name.")
                     return
 
                 new_app = FlightApp(new_app_name, path=new_app_path)
@@ -382,11 +383,9 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Input Error", "Application path cannot be empty.")
                 return
 
-            # Check for duplicate name (excluding the app being edited)
             if new_name.lower() != app_to_edit.name.lower() and \
-                    any(app.name.lower() == new_name.lower() for app in self.available_apps if app != app_to_edit):
-                QMessageBox.warning(self, "Duplicate Name",
-                                    f"An application named '{new_name}' already exists (case-insensitive). Please choose a different name.")
+               any(app.name.lower() == new_name.lower() for app in self.available_apps if app != app_to_edit):
+                QMessageBox.warning(self, "Duplicate Name", f"An application named '{new_name}' already exists (case-insensitive). Please choose a different name.")
                 return
 
             app_to_edit.name = new_name
@@ -425,14 +424,13 @@ class MainWindow(QMainWindow):
                     "exe": "FlightSimulator.exe",
                     "subdirs": [
                         os.path.join("Steam", "steamapps", "common", "MicrosoftFlightSimulator"),
-                        os.path.join("WpSystem", "Microsoft.FlightSimulator_8wekyb3d8bbwe", "LocalCache", "Packages",
-                                     "Microsoft.FlightSimulator_8wekyb3d8bbwe")
+                        os.path.join("WpSystem", "Microsoft.FlightSimulator_8wekyb3d8bbwe", "LocalCache", "Packages", "Microsoft.FlightSimulator_8wekyb3d8bbwe")
                     ],
                     "registry_key": r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 1250410"
                 },
                 "ElevateX": {
-                    "exe": "ElevateX.exe",
-                    "subdirs": ["ElevateX", "ElevateX Beta"]
+                    "exe": "Elevatex.exe",
+                    "subdirs": ["Elevatex", "ElevateX Beta"]
                 },
                 "Navigraph Charts": {
                     "exe": "Navigraph Charts.exe",
@@ -503,14 +501,6 @@ class MainWindow(QMainWindow):
 
         elif sys.platform == "darwin":
             macos_app_info = {
-                "Microsoft Flight Simulator": {
-                    "bundle_name": "Microsoft Flight Simulator.app",
-                    "bundle_id": "com.microsoft.FlightSimulator"
-                },
-                "ElevateX": {
-                    "bundle_name": "ElevateX.app",
-                    "bundle_id": "org.elevatex.ElevateX"
-                },
                 "Navigraph Charts": {
                     "bundle_name": "Navigraph Charts.app",
                     "bundle_id": "com.navigraph.charts"
@@ -552,7 +542,6 @@ class MainWindow(QMainWindow):
         else:
             print(f"Platform {sys.platform} not fully supported for auto-discovery yet.")
             return None
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
